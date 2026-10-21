@@ -32,6 +32,10 @@ function replay(answers) {
       key = JSON.parse(options.body).password === PASSWORD ? 'login' : 'login_refused';
     } else if (!options.headers?.authorization) {
       key = 'unauthorized';
+    } else if (pathname.endsWith('/teams')) {
+      key = 'teams';
+    } else if (/\/teams\/[^/]+\/websites$/.test(pathname)) {
+      key = 'team_websites';
     } else if (pathname.endsWith('/websites')) {
       key = 'websites';
     } else if (pathname.endsWith('/active')) {
@@ -54,11 +58,14 @@ for (const [file, expected] of [
       websites: [
         { id: 'f3225440-f256-451d-be30-0aa8b0291d3a', name: 'Blog', domain: 'blog.example.org' },
         { id: '96735b31-c8cd-48d3-b845-0b8c89ce326d', name: 'Shop', domain: 'shop.example.org' },
+        // Shared through the team "Marketing".
+        { id: 'd74f6adc-341d-4028-9361-48c99c5c0ab3', name: 'Docs', domain: 'docs.example.org' },
       ],
       active: 3,
       stats: { pageviews: 7, visitors: 3, visits: 3, bounces: 1, totaltime: 0 },
       top: { path: '/', views: 3 },
       metricCalls: ['path'],
+      complete: true,
     },
   ],
   [
@@ -71,6 +78,8 @@ for (const [file, expected] of [
       stats: { pageviews: 4, visitors: 2, visits: 2, bounces: 0, totaltime: 0 },
       top: { path: '/', views: 2 },
       metricCalls: ['path', 'url'],
+      // Umami 2 has no GET /teams (405): its own list is used alone.
+      complete: false,
     },
   ],
 ]) {
@@ -79,7 +88,10 @@ for (const [file, expected] of [
     const { request, calls } = replay(answers);
     const client = new UmamiClient({ url: BASE, username: USERNAME, password: PASSWORD, request });
     assert.equal(client.mode, 'login');
-    assert.deepEqual(await client.websites(), expected.websites);
+    assert.deepEqual(await client.websites(), {
+      websites: expected.websites,
+      complete: expected.complete,
+    });
     const id = expected.websites[0].id;
     assert.equal(await client.active(id), expected.active);
     assert.deepEqual(await client.stats(id, 1, 2), expected.stats);
@@ -105,6 +117,76 @@ for (const [file, expected] of [
   });
 }
 
+test('a view-only team member sees the websites of its teams (real Umami 3.4.0 answers)', async () => {
+  const answers = await fixture('v3.4.0.json');
+  // The viewer's own list is empty: the website comes from the team.
+  const { request } = replay({ ...answers, websites: answers.viewer_websites });
+  const client = new UmamiClient({ url: BASE, username: USERNAME, password: PASSWORD, request });
+  assert.deepEqual(await client.websites(), {
+    websites: [
+      { id: 'd74f6adc-341d-4028-9361-48c99c5c0ab3', name: 'Docs', domain: 'docs.example.org' },
+    ],
+    complete: true,
+  });
+  // A website the viewer cannot read: 401, taken as a website gone.
+  const { request: refused } = replay({ ...answers, active: answers.website_unauthorized });
+  const other = new UmamiClient({
+    url: BASE,
+    username: USERNAME,
+    password: PASSWORD,
+    request: refused,
+  });
+  await assert.rejects(other.active('96735b31-c8cd-48d3-b845-0b8c89ce326d'), {
+    kind: ERROR_KINDS.NOT_FOUND,
+  });
+});
+
+test('the page metric: the other name after a 400, no top page when both fail', async () => {
+  let refuse = new Set(['path']);
+  const calls = [];
+  const client = new UmamiClient({
+    url: BASE,
+    apiKey: API_KEY,
+    request: async (url) => {
+      const type = new URL(url).searchParams.get('type');
+      calls.push(type);
+      return refuse.has(type)
+        ? { status: 400, body: '{}' }
+        : { status: 200, body: JSON.stringify([{ x: '/a', y: 2 }]) };
+    },
+  });
+  assert.deepEqual(await client.topPage('id', 1, 2), { path: '/a', views: 2 });
+  assert.equal(client.pageMetric, 'url');
+  refuse = new Set(['path', 'url']);
+  assert.equal(await client.topPage('id', 1, 2), null, 'a passing 400 does not fail the read');
+  refuse = new Set(['url']);
+  assert.deepEqual(await client.topPage('id', 1, 2), { path: '/a', views: 2 });
+  assert.equal(client.pageMetric, 'path', 'back to path');
+  assert.deepEqual(calls, ['path', 'url', 'url', 'path', 'url', 'path']);
+});
+
+test('Umami Cloud requests stay within its rate limit', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const umami = new FakeUmami({ cloud: true });
+  const client = new UmamiClient({
+    url: '',
+    apiKey: CLOUD_KEY,
+    rate: { requests: 3, perMs: 15_000 },
+    request: (url, options) => umami.request(url.replace(CLOUD_API, `${BASE}/v1`), options),
+  });
+  const done = [];
+  const reads = [1, 2, 3, 4].map((n) =>
+    client.active(umami.websites[0].id).then(() => done.push(n)),
+  );
+  for (let i = 0; i < 20; i += 1) {
+    await Promise.resolve();
+  }
+  assert.equal(done.length, 3, 'the fourth waits');
+  t.mock.timers.tick(15_000);
+  await Promise.all(reads);
+  assert.equal(done.length, 4);
+});
+
 test('counts accept numbers, bigint strings and the { value, prev } of Umami 2', () => {
   assert.equal(count(7), 7);
   assert.equal(count('12'), 12);
@@ -126,7 +208,7 @@ test('Umami Cloud: api.umami.is/v1 and the x-umami-api-key header', async () => 
     },
   });
   assert.equal(client.mode, 'cloud');
-  assert.equal((await client.websites()).length, 2);
+  assert.equal((await client.websites()).websites.length, 2);
   assert.ok(calls[0].url.startsWith(`${CLOUD_API}/websites?`));
   assert.equal(calls[0].headers['x-umami-api-key'], CLOUD_KEY);
   assert.equal(calls[0].headers.authorization, undefined);
@@ -140,7 +222,7 @@ test('a self-hosted API key is sent as a Bearer, without login', async () => {
   await client.websites();
   assert.deepEqual(
     umami.requests.map((r) => new URL(r.url).pathname),
-    ['/api/websites'],
+    ['/api/websites', '/api/teams'],
   );
 });
 
@@ -157,7 +239,15 @@ test('an expired session token is renewed once, then the request is sent again',
   await client.websites();
   assert.deepEqual(
     umami.requests.map((r) => new URL(r.url).pathname),
-    ['/api/auth/login', '/api/websites', '/api/websites', '/api/auth/login', '/api/websites'],
+    [
+      '/api/auth/login',
+      '/api/websites',
+      '/api/teams',
+      '/api/websites',
+      '/api/auth/login',
+      '/api/websites',
+      '/api/teams',
+    ],
   );
 });
 
@@ -181,9 +271,9 @@ test('every list page is read, a website listed twice kept once', async () => {
   websites.push({ ...websites[0] });
   const umami = new FakeUmami({ websites });
   const client = new UmamiClient({ url: BASE, apiKey: API_KEY, request: umami.request });
-  const found = await client.websites();
+  const { websites: found } = await client.websites();
   assert.equal(found.length, 230);
-  assert.equal(umami.requests.length, 3);
+  assert.equal(umami.requests.filter((r) => r.url.includes('/api/websites')).length, 3);
 });
 
 test('errors: down, certificate, 429, redirect, not Umami, deleted website', async () => {

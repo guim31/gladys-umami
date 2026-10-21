@@ -30,9 +30,7 @@ pas encore sur Umami Cloud : vos retours sont les bienvenus dans
 À chaque rafraîchissement, l'intégration envoie deux requêtes par site
 (visiteurs en ce moment, chiffres du jour), plus la page la plus vue toutes les
 5 minutes, les visites des dernières heures toutes les 15 minutes et la liste
-des sites toutes les 10 minutes. Une douzaine de sites lus chaque minute
-restent loin des 50 requêtes par 15 secondes d'Umami Cloud ; choisissez un
-intervalle plus long si vous suivez beaucoup de sites.
+des sites toutes les 10 minutes. Sur Umami Cloud (50 requêtes par 15 secondes), l'intégration se freine elle-même à 40 requêtes par 15 secondes : avec beaucoup de sites, choisissez un intervalle plus long pour que chaque lecture reste à l'heure. Gladys accepte 300 états par minute : avec l'intervalle de 30 secondes, ajoutez au plus 25 sites à Gladys.
 
 ## Mise en route
 
@@ -105,11 +103,10 @@ Umami.
 ### Déclencheurs
 
 - **Pic de visiteurs** : les visiteurs en ce moment d'un site atteignent le
-  seuil de la configuration. Une fois par pic : il faut que les visiteurs
-  repassent sous le seuil, et que 30 minutes passent, avant un nouveau.
+  seuil de la configuration. Une fois par pic, et 30 minutes au moins entre deux annonces pour un site : un pic encore en cours à la fin de la pause est annoncé à ce moment-là.
   Variables : nom du site, domaine, visiteurs en ce moment, seuil.
 - **Premier visiteur de la journée** : un site reçoit son premier visiteur
-  depuis minuit. Variables : nom du site, domaine, visiteurs aujourd'hui.
+  depuis minuit. Variables : nom du site, domaine, visiteurs aujourd'hui. Si l'intégration était arrêtée, le premier visiteur est annoncé à la première lecture après son redémarrage.
 - **Aucune visite depuis un moment** : un site qui avait des visites n'en reçoit
   plus pendant les heures de la configuration : le script de suivi est
   peut-être cassé, ou le site en panne. Une fois, jusqu'au retour d'une visite.
@@ -172,5 +169,5 @@ ou un silence déjà en cours est seulement noté.
 - Un seul compte Umami (Cloud ou serveur) par intégration.
 - Les seuils de « Pic de visiteurs » et « Aucune visite depuis un moment » sont
   les mêmes pour tous les sites.
-- Umami 1 n'est pas pris en charge (son API est différente).
+- Umami 1 n'est pas pris en charge (son API est différente). Les sites d'une équipe sont lus à partir d'Umami 3 ; sur Umami 2, seulement ceux du compte ou des équipes qu'il possède ou gère.
 - Pas encore testée sur Umami Cloud, et sans lien avec Umami Software.

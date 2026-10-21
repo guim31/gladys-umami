@@ -34,13 +34,17 @@ const v2 = await fixture('v2.19.0.json');
 /** Answers every request from a fixture file, by endpoint. */
 const replay = (answers) => async (url) => {
   const { pathname, searchParams } = new URL(url);
-  const key = pathname.endsWith('/websites')
-    ? 'websites'
-    : pathname.endsWith('/active')
-      ? 'active'
-      : pathname.endsWith('/stats')
-        ? 'stats'
-        : `metrics_${searchParams.get('type')}`;
+  const key = pathname.endsWith('/teams')
+    ? 'teams'
+    : /\/teams\/[^/]+\/websites$/.test(pathname)
+      ? 'team_websites'
+      : pathname.endsWith('/websites')
+        ? 'websites'
+        : pathname.endsWith('/active')
+          ? 'active'
+          : pathname.endsWith('/stats')
+            ? 'stats'
+            : `metrics_${searchParams.get('type')}`;
   const { status, body } = answers[key];
   return { status, body: JSON.stringify(body) };
 };
@@ -62,9 +66,9 @@ async function discover(language, answers) {
 }
 
 const scenarios = [
-  { label: 'Umami 3.4.0, English names', language: 'en', answers: v3, count: 2 },
+  { label: 'Umami 3.4.0, English names', language: 'en', answers: v3, count: 3 },
   { label: 'Umami 2.19.0, French names', language: 'fr', answers: v2, count: 1 },
-  { label: 'Umami 3.4.0, German names', language: 'de', answers: v3, count: 2 },
+  { label: 'Umami 3.4.0, German names', language: 'de', answers: v3, count: 3 },
   { label: 'Umami 2.19.0, Spanish names', language: 'es', answers: v2, count: 1 },
 ];
 

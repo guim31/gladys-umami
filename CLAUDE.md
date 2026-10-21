@@ -221,8 +221,14 @@ Bearer` ; sinon `POST /api/auth/login` → jeton Bearer, redemandé **une fois**
   lié au hash du mot de passe). Un compte à double authentification répond
   `{ requiresTwoFactor, partialToken }` : erreur `two_factor`, on oriente vers une clé d'API. Les clés
   auto-hébergées sont refusées sur `/api/auth`, `/api/users`, `/api/admin`… (sans objet ici).
-- Un site inconnu répond **200 `{ visitors: 0 }`** à un administrateur sur `/active` (pas 404) ; un
-  404 « site » fait relire la liste au cycle suivant.
+- `includeTeams=true` ne donne que les équipes dont le compte est **propriétaire ou gestionnaire**
+  (`getAllUserWebsitesIncludingTeamAccess`) : un utilisateur « view-only » membre d'une équipe y a une
+  liste vide. On lit donc aussi `GET /teams` puis `GET /teams/<id>/websites` (vérifié en 3.4.0). La v2
+  répond **405** à `GET /teams` : liste « incomplète », les sites déjà connus sont gardés.
+- Un site supprimé ou plus partagé répond **401**, jamais 404 (200 `{ visitors: 0 }` pour un
+  administrateur) : un 401 sur `/websites/<id>/…` est traité comme un site disparu (le site est oublié,
+  la liste relue au cycle suivant), pas comme des identifiants refusés.
+- Umami Cloud : 50 requêtes / 15 s ; le client se limite à 40 (`CLOUD_RATE`) en attendant.
 - Un événement envoyé à `POST /api/send` à la seconde N n'est pas compté par un `endAt` tronqué à la
   même seconde (piège de test, pas de l'intégration).
 - **Déclencheurs** : pic = `active ≥ seuil` sur front montant, réarmé sous le seuil, 30 min au moins
@@ -236,7 +242,21 @@ Bearer` ; sinon `POST /api/auth/login` → jeton Bearer, redemandé **une fois**
 
 ## Vérifié sur un vrai Umami
 
-À compléter par le test Docker de la session (voir la PR).
+Le 21/10/2026, image Docker de l'intégration lancée avec les contraintes du bac à sable de Gladys
+(`--cap-drop ALL --security-opt no-new-privileges --read-only --memory 256m --pids-limit 256`, volume
+`/data`, réseau en pont, `TZ=Europe/Paris`) contre `ghcr.io/umami-software/umami:postgresql-latest`
+(**3.4.0**) et `postgresql-v2.19.0`, visites envoyées à `POST /api/send` comme le script de suivi.
+
+- **Sans Gladys** : reconnexion du SDK en backoff, pas de plantage, aucun secret dans les logs,
+  ~18 Mo au repos, arrêt propre sur SIGTERM (code 0).
+- **Intégration complète** (faux Gladys du SDK, noms en français) : 3.4.0 par identifiant et par clé
+  `umami_…`, 2.19.0 par identifiant (statistiques `{ value, prev }`, repli `url`) ; découverte, états,
+  badge `local`, « Tester la connexion », widget validé, « Lire les chiffres d'un site ». Déclencheurs
+  réels : pic de visiteurs (seuil 4) et premier visiteur de la journée, rien de plus après redémarrage
+  sur le même `/data`. Mauvais mot de passe, mauvaise clé, hôte inconnu, mauvais chemin, Cloud sans
+  clé : messages justes.
+- Non vérifié : Umami Cloud (pas de compte), le déclencheur « aucune visite » en temps réel (couvert
+  par les tests), une instance Gladys réelle (rendu du widget, éditeur de scènes), ClickHouse.
 
 ## Store
 

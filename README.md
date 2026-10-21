@@ -42,7 +42,8 @@ At the chosen interval (one minute by default), the container reads, for every
 website, `GET /websites/{id}/active` and `GET /websites/{id}/stats` from
 midnight (time zone of Gladys); the most viewed page every 5 minutes, the
 visits of the last N hours every 15 minutes, the website list every 10
-minutes. It publishes the states of the devices added to Gladys when they
+minutes (with the websites shared in its teams). On Umami Cloud the client
+keeps below 40 requests per 15 seconds. It publishes the states of the devices added to Gladys when they
 change and fires the scene events on transitions. What the triggers remember
 is kept in `/data`, so a restart announces nothing twice. Redirects are not
 followed, so the credentials are never sent to another host.

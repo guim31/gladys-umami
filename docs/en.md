@@ -29,9 +29,7 @@ not yet on Umami Cloud: feedback welcome on
 At each refresh the integration sends two requests per website (visitors right
 now, figures of the day), plus the most viewed page every 5 minutes, the
 visits of the last hours every 15 minutes and the website list every 10
-minutes. A dozen websites read every minute stay well below the 50 requests per
-15 seconds of Umami Cloud; choose a longer interval if you follow many
-websites.
+minutes. On Umami Cloud (50 requests per 15 seconds), the integration slows itself down to 40 requests per 15 seconds: with many websites, choose a longer interval so each read stays on time. Gladys accepts 300 states per minute: with the 30-second interval, add 25 websites at most to Gladys.
 
 ## Getting started
 
@@ -100,11 +98,10 @@ Gladys). The **Refresh** button reads Umami again.
 ### Triggers
 
 - **Visitor spike**: the visitors right now of a website reach the threshold
-  of the configuration. Once per spike: the visitors must go below the
-  threshold, and 30 minutes pass, before a new one. Variables: website name,
+  of the configuration. Once per spike, and 30 minutes at least between two announcements for a website: a spike still under way at the end of the pause is announced then. Variables: website name,
   domain, visitors right now, threshold.
 - **First visitor of the day**: a website receives its first visitor since
-  midnight. Variables: website name, domain, visitors today.
+  midnight. Variables: website name, domain, visitors today. If the integration was stopped, the first visitor is announced at the first read after it starts again.
 - **No visit for a while**: a website that had visits receives none for the
   hours of the configuration: the tracking script may be broken, or the
   website down. Once, until a visit comes again. Variables: website name,
@@ -162,5 +159,5 @@ way is only recorded.
 - One Umami account (Cloud or server) per integration.
 - The thresholds of "Visitor spike" and "No visit for a while" are the same for
   every website.
-- Umami 1 is not supported (its API is different).
+- Umami 1 is not supported (its API is different). The websites of a team are read from Umami 3; on Umami 2, only the ones the account owns or the teams it owns or manages.
 - Not tested on Umami Cloud yet, and not affiliated with Umami Software.

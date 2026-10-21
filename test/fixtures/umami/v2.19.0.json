@@ -98,5 +98,9 @@
         "isAdmin": true
       }
     }
+  },
+  "teams": {
+    "status": 405,
+    "body": null
   }
 }

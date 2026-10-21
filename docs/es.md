@@ -29,9 +29,7 @@ todavía no con Umami Cloud: sus comentarios son bienvenidos en
 En cada actualización, la integración envía dos peticiones por sitio
 (visitantes ahora mismo, cifras del día), más la página más vista cada 5
 minutos, las visitas de las últimas horas cada 15 minutos y la lista de sitios
-cada 10 minutos. Una docena de sitios leídos cada minuto quedan muy por debajo
-de las 50 peticiones por 15 segundos de Umami Cloud; elija un intervalo más
-largo si sigue muchos sitios.
+cada 10 minutos. En Umami Cloud (50 peticiones por 15 segundos), la integración se frena a sí misma a 40 peticiones por 15 segundos: con muchos sitios, elija un intervalo más largo para que cada lectura llegue a tiempo. Gladys acepta 300 estados por minuto: con el intervalo de 30 segundos, añada como máximo 25 sitios a Gladys.
 
 ## Primeros pasos
 
@@ -102,11 +100,10 @@ vuelve a leer Umami.
 ### Desencadenantes
 
 - **Pico de visitantes**: los visitantes actuales de un sitio alcanzan el
-  umbral de la configuración. Una vez por pico: los visitantes deben bajar del
-  umbral, y pasar 30 minutos, antes de uno nuevo. Variables: nombre del sitio,
+  umbral de la configuración. Una vez por pico, y al menos 30 minutos entre dos avisos para un sitio: un pico aún en curso al final de la pausa se anuncia en ese momento. Variables: nombre del sitio,
   dominio, visitantes ahora mismo, umbral.
 - **Primer visitante del día**: un sitio recibe su primer visitante desde la
-  medianoche. Variables: nombre del sitio, dominio, visitantes hoy.
+  medianoche. Variables: nombre del sitio, dominio, visitantes hoy. Si la integración estaba detenida, el primer visitante se anuncia en la primera lectura tras su reinicio.
 - **Sin visitas desde hace un tiempo**: un sitio que tenía visitas no recibe
   ninguna durante las horas de la configuración: quizá el script de
   seguimiento falla, o el sitio está caído. Una vez, hasta que vuelva una
@@ -169,5 +166,5 @@ en curso solo se registra.
 - Una sola cuenta de Umami (Cloud o servidor) por integración.
 - Los umbrales de «Pico de visitantes» y «Sin visitas desde hace un tiempo» son
   los mismos para todos los sitios.
-- Umami 1 no es compatible (su API es diferente).
+- Umami 1 no es compatible (su API es diferente). Los sitios de un equipo se leen desde Umami 3; en Umami 2, solo los de la cuenta o de los equipos que posee o gestiona.
 - Todavía no probada con Umami Cloud, y sin relación con Umami Software.

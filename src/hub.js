@@ -11,8 +11,8 @@
 // Requests per website and cycle: visitors right now, and today's statistics.
 // The most viewed page is read every 5 minutes, the visits of the last N hours
 // (for "no visit for N hours") every 15 minutes, the website list every 10
-// minutes: a dozen websites read every minute stay well below the 50 requests
-// per 15 seconds of Umami Cloud.
+// minutes. On Umami Cloud (50 requests per 15 seconds), the client waits
+// rather than exceed 40 (src/umami/client.js).
 //
 // What the triggers remember is kept in /data (src/store.js): a restart
 // neither announces a spike or a first visitor twice, nor misses a silence.
@@ -205,9 +205,9 @@ export class UmamiHub {
     await this.afterChanges(changed, { publish });
   }
 
-  /** Read again when the last read is older than `freshMs` (scene actions). */
+  /** Read again when the last read failed or is older than `freshMs` (scene actions). */
   async refreshIfStale() {
-    if (this.client && this.now() - this.readAt >= this.timings.freshMs) {
+    if (this.client && (this.error || this.now() - this.readAt >= this.timings.freshMs)) {
       await this.pollNow();
     }
   }
@@ -248,7 +248,7 @@ export class UmamiHub {
   async readSites(client) {
     const now = this.now();
     if (this.websitesAt === 0 || now - this.websitesAt >= this.timings.websitesEveryMs) {
-      const websites = await client.websites();
+      const { websites, complete } = await client.websites();
       if (client !== this.client) {
         return;
       }
@@ -256,6 +256,14 @@ export class UmamiHub {
       for (const website of websites) {
         const known = this.sites.get(website.id);
         next.set(website.id, known ? { ...known, ...website } : blankSite(website));
+      }
+      if (!complete) {
+        // The teams could not be read: keep the websites known from them.
+        for (const [id, site] of this.sites) {
+          if (!next.has(id)) {
+            next.set(id, site);
+          }
+        }
       }
       this.sites = next;
       this.websitesAt = now;
@@ -269,7 +277,8 @@ export class UmamiHub {
         if (!(err instanceof UmamiError && err.kind === ERROR_KINDS.NOT_FOUND)) {
           throw err;
         }
-        // Deleted in Umami since the last list: forget it, list again next time.
+        // Deleted or no longer shared since the last list (Umami answers 401):
+        // forget it, list again next time.
         this.sites.delete(site.id);
         this.websitesAt = 0;
       }
@@ -370,13 +379,15 @@ export class UmamiHub {
     const threshold = this.config.spikeThreshold;
 
     if (site.active >= threshold) {
-      if (!saved.spike) {
+      if (first) {
+        saved.spike = true; // under way before the integration saw it
+      } else if (!saved.spike && now - (saved.spikeAt || 0) >= this.timings.spikeCooldownMs) {
+        // A spike starting during the pause is announced once the pause is
+        // over, if it still lasts.
         saved.spike = true;
-        if (!first && now - (saved.spikeAt || 0) >= this.timings.spikeCooldownMs) {
-          saved.spikeAt = now;
-          logger.info(`${site.name}: ${site.active} visitors right now`);
-          await this.fire(TRIGGERS.SPIKE, site, { visitors: site.active, threshold });
-        }
+        saved.spikeAt = now;
+        logger.info(`${site.name}: ${site.active} visitors right now`);
+        await this.fire(TRIGGERS.SPIKE, site, { visitors: site.active, threshold });
       }
     } else if (saved.spike) {
       saved.spike = false;

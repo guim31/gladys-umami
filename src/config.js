@@ -28,7 +28,8 @@ export const MAX_SILENCE_HOURS = 720;
 
 // Pages of the Umami interface: an address copied from the browser points at
 // one of them, the API lives at the root.
-const INTERFACE_PATH = /\/(websites|dashboard|settings|teams|login|share|api)(\/.*)?$/i;
+const INTERFACE_PATH =
+  /\/(websites|dashboard|settings|teams|login|share|api|admin|boards|links|pixels|profile|reports|console)(\/.*)?$/i;
 
 // The hosts of Umami Cloud: the interface and the API.
 const CLOUD_HOST = /^(cloud|api|eu|us)\.umami\.is$/i;

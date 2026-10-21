@@ -31,7 +31,7 @@ export function website(fields = {}) {
 }
 
 export class FakeUmami {
-  constructor({ websites, version = 3, cloud = false, twoFactor = false } = {}) {
+  constructor({ websites, teams = [], version = 3, cloud = false, twoFactor = false } = {}) {
     this.websites = websites ?? [
       website({
         name: 'Blog',
@@ -42,6 +42,8 @@ export class FakeUmami {
       }),
       website({ name: 'Shop', domain: 'shop.example.org' }),
     ];
+    /** Teams the account is a member of: `{ id, websites: [website] }`. */
+    this.teams = teams;
     this.version = version;
     this.cloud = cloud;
     this.twoFactor = twoFactor;
@@ -109,18 +111,36 @@ export class FakeUmami {
     if (!this.authorized(headers)) {
       return json(401, { error: { message: 'Unauthorized', status: 401 } });
     }
-    if (path === '/websites') {
+    const paged = (items) => {
       const page = Number(query.page ?? 1);
       const size = Number(query.pageSize ?? 20);
-      const data = this.websites
-        .slice((page - 1) * size, page * size)
-        .map(({ id, name, domain }) => ({ id, name, domain, teamId: null, shareId: null }));
-      return json(200, { data, count: this.websites.length, page, pageSize: size });
+      const data = items.slice((page - 1) * size, page * size);
+      return json(200, { data, count: items.length, page, pageSize: size });
+    };
+    const listed = ({ id, name, domain }) => ({ id, name, domain, shareId: null });
+    if (path === '/websites') {
+      return paged(this.websites.map(listed));
+    }
+    if (path === '/teams') {
+      // Umami 2 has no GET /teams.
+      return this.version === 2
+        ? { status: 405, body: '' }
+        : paged(this.teams.map(({ id }) => ({ id })));
+    }
+    const team = path.match(/^\/teams\/([^/]+)\/websites$/);
+    if (team) {
+      const found = this.teams.find((item) => item.id === team[1]);
+      return found ? paged(found.websites.map(listed)) : json(401, { error: { status: 401 } });
     }
     const match = path.match(/^\/websites\/([^/]+)\/(active|stats|metrics)$/);
-    const site = match && this.websites.find((item) => item.id === match[1]);
-    if (!site) {
+    const all = [...this.websites, ...this.teams.flatMap((item) => item.websites)];
+    const site = match && all.find((item) => item.id === match[1]);
+    if (!match) {
       return json(404, { error: { message: 'Not found', status: 404 } });
+    }
+    if (!site) {
+      // Like Umami: a website deleted or not shared is a 401, not a 404.
+      return json(401, { error: { message: 'Unauthorized', status: 401 } });
     }
     if (match[2] === 'active') {
       return json(200, { visitors: site.active });

@@ -31,9 +31,7 @@ PostgreSQL); noch nicht mit der Umami Cloud: Rückmeldungen sind willkommen in
 Bei jeder Aktualisierung sendet die Integration zwei Anfragen pro Website
 (Besucher gerade jetzt, Zahlen des Tages), dazu alle 5 Minuten die
 meistbesuchte Seite, alle 15 Minuten die Besuche der letzten Stunden und alle
-10 Minuten die Website-Liste. Ein Dutzend Websites, jede Minute gelesen, bleibt
-weit unter den 50 Anfragen pro 15 Sekunden der Umami Cloud; wähle ein längeres
-Intervall, wenn du viele Websites verfolgst.
+10 Minuten die Website-Liste. Bei der Umami Cloud (50 Anfragen pro 15 Sekunden) bremst sich die Integration selbst auf 40 Anfragen pro 15 Sekunden: Wähle bei vielen Websites ein längeres Intervall, damit jedes Lesen pünktlich bleibt. Gladys nimmt 300 Zustände pro Minute an: Lege beim 30-Sekunden-Intervall höchstens 25 Websites in Gladys an.
 
 ## Erste Schritte
 
@@ -106,11 +104,10 @@ Die Schaltfläche **Aktualisieren** liest Umami neu.
 ### Auslöser
 
 - **Besucheransturm**: Die Besucher einer Website erreichen gerade die
-  Schwelle der Konfiguration. Einmal pro Ansturm: Die Besucher müssen unter
-  die Schwelle fallen und 30 Minuten vergehen, bevor ein neuer kommt.
+  Schwelle der Konfiguration. Einmal pro Ansturm, und mindestens 30 Minuten zwischen zwei Meldungen für eine Website: Ein Ansturm, der am Ende der Pause noch läuft, wird dann gemeldet.
   Variablen: Name der Website, Domain, Besucher gerade jetzt, Schwelle.
 - **Erster Besucher des Tages**: Eine Website empfängt ihren ersten Besucher
-  seit Mitternacht. Variablen: Name der Website, Domain, Besucher heute.
+  seit Mitternacht. Variablen: Name der Website, Domain, Besucher heute. War die Integration gestoppt, wird der erste Besucher beim ersten Lesen nach dem Neustart gemeldet.
 - **Länger kein Besuch**: Eine Website mit Besuchen erhält für die Stunden der
   Konfiguration keine mehr: Vielleicht ist das Tracking-Skript kaputt oder die
   Website ausgefallen. Einmal, bis wieder ein Besuch kommt. Variablen: Name
@@ -173,6 +170,6 @@ oder eine laufende Stille wird nur vermerkt.
 - Ein Umami-Konto (Cloud oder Server) pro Integration.
 - Die Schwellen von „Besucheransturm“ und „Länger kein Besuch“ gelten für alle
   Websites gleich.
-- Umami 1 wird nicht unterstützt (seine API ist anders).
+- Umami 1 wird nicht unterstützt (seine API ist anders). Die Websites eines Teams werden ab Umami 3 gelesen; bei Umami 2 nur die des Kontos oder der Teams, die es besitzt oder verwaltet.
 - Noch nicht mit der Umami Cloud getestet, und nicht mit Umami Software
   verbunden.

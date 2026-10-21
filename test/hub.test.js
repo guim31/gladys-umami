@@ -463,3 +463,51 @@ async function captureLogs(t, level, fn) {
   }
   return lines;
 }
+
+test('a spike that starts during the pause is announced once the pause is over', async (t) => {
+  const world = await createWorld();
+  t.after(() => world.app.stop());
+  const poll = async (active, ms = MINUTE) => {
+    world.umami.set('Blog', { active });
+    world.clock.advance(ms);
+    await world.hub.pollNow();
+  };
+  await poll(12);
+  await poll(2);
+  await poll(50);
+  assert.equal(events(world, TRIGGERS.SPIKE).length, 1, 'still in the pause');
+  await poll(50, HUB_TIMINGS.spikeCooldownMs);
+  assert.equal(events(world, TRIGGERS.SPIKE).length, 2);
+  await poll(60);
+  assert.equal(events(world, TRIGGERS.SPIKE).length, 2, 'the same spike');
+});
+
+test('the websites shared in a team are proposed too', async (t) => {
+  const umami = new FakeUmami({
+    teams: [{ id: 'team-1', websites: [website({ name: 'Docs' })] }],
+  });
+  const world = await createWorld({ umami });
+  t.after(() => world.app.stop());
+  assert.deepEqual(
+    world.fake.discoveredDevices.map((d) => d.name),
+    ['Blog', 'Shop', 'Docs'],
+  );
+  const docs = umami.teams[0].websites[0];
+  assert.equal(world.hub.sites.get(docs.id).today.visitors, 0, 'read like the others');
+});
+
+test('the scene action reads Umami again right after an outage', async (t) => {
+  const world = await createWorld();
+  t.after(() => world.app.stop());
+  world.umami.failure = 'down';
+  world.clock.advance(MINUTE);
+  await world.hub.pollNow();
+  assert.equal(world.fake.connectionStatus.connected, false);
+  world.umami.failure = null;
+  world.clock.advance(1000); // well before the next cycle
+  const ack = await world.fake.sceneAction('get_website_stats', {
+    device: idsOf(world, 'Blog').device,
+  });
+  assert.equal(ack.success, true, ack.error);
+  assert.equal(ack.data.outputs.visitors, 12);
+});
