@@ -1,61 +1,166 @@
-# Demo Devices Template
+# Umami
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+[Umami](https://umami.is/) is a simple, privacy-focused web analytics tool,
+open source (MIT), self-hosted or on Umami Cloud. This integration brings the
+figures of your Umami websites into Gladys: each website becomes a device with
+its visitors right now and its visitors, visits, page views, bounce rate and
+most viewed page of the day. Scenes can react to a visitor spike, to the first
+visitor of the day, or to a website that receives no visit any more (a broken
+tracking script), a dashboard widget shows the day at a glance, and a scene
+action puts the figures of a website in a message.
 
-## What you get
+Tested against a real self-hosted Umami 3.4.0 and 2.19.0 (Docker, PostgreSQL);
+not yet on Umami Cloud: feedback welcome on
+[the issues](https://github.com/guim31/gladys-umami/issues).
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+## What you need
 
-## Configuration
+- Gladys Assistant 5.1.0 or later.
+- An Umami: on [Umami Cloud](https://cloud.umami.is/), or your own server
+  (Umami 2 or 3), reachable from the Gladys machine.
+- To sign in, one of:
+  - Umami Cloud: an **API key**;
+  - your own server, Umami 3.4 or later: an **API key** (it starts with
+    `umami_`);
+  - your own server, any version: a **user name and its password**. A user
+    with the "view-only" role is enough, and the account must not use
+    two-factor login.
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+At each refresh the integration sends two requests per website (visitors right
+now, figures of the day), plus the most viewed page every 5 minutes, the
+visits of the last hours every 15 minutes and the website list every 10
+minutes. A dozen websites read every minute stay well below the 50 requests per
+15 seconds of Umami Cloud; choose a longer interval if you follow many
+websites.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+## Getting started
 
-## Actions
+### 1. Create an API key, or a user
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+- Umami Cloud, or your server from Umami 3.4: in Umami, open **Settings → API
+  keys**, create a key and copy it (it is shown only once).
+- Otherwise: in **Settings → Users**, create a user with the **View only**
+  role and give it access to the websites (or use your own account).
 
-## Scenes
+### 2. Configure the integration
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+In Gladys, open **Integrations → Umami → Configuration**:
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+- **Umami address**: empty for Umami Cloud, or the address of your server (for
+  example `http://192.168.1.10:3000`). An address copied from the browser is
+  understood.
+- **API key**, or **User name** and **Password**: see above. With an API key,
+  the user name and password are not used.
+- **Refresh interval**: from 30 seconds to 5 minutes (1 minute by default).
+- **Visitor spike from**: the visitors at the same time that fire the "Visitor
+  spike" trigger (10 by default).
+- **No visit for (hours)**: the hours without any visit that fire the "No
+  visit for a while" trigger (24 by default).
+- **Language of the names**: language of the feature names and of the scene
+  results (French by default).
+
+Save, then click **Test the connection**: the result gives the number of
+websites, the visitors of the day and the visitors right now.
+
+### 3. Add the websites
+
+Open the **Discover** tab: each website is proposed with its name. Add the ones
+you want to see in Gladys. The scene triggers and the widget work for every
+website, added or not.
+
+## The devices
+
+Each website becomes a device with:
+
+- **Visitors right now**: the visitors of the last 5 minutes, as in the
+  "Realtime" page of Umami.
+- **Visitors today**: unique visitors since midnight.
+- **Visits today**: visits (sessions) since midnight.
+- **Page views today**: page views since midnight.
+- **Bounce rate today**: the share of visits that saw a single page, in
+  percent.
+- **Most viewed page today**: its path, for example `/posts/hello`; "-" before
+  the first page view of the day.
+
+"Today" starts at midnight in the time zone of Gladys: the daily figures go
+back to 0 at midnight. A value that does not change is sent again every 12
+hours, so Gladys keeps it recent.
 
 ## Dashboard
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+The **Umami today** widget shows four tiles (visitors right now, visitors,
+visits and page views of the day), added up over the websites shown, then one
+row per website with its visitors of the day and right now, the busiest first.
+With a single website, the most viewed page of the day is shown instead. In
+the widget settings, choose some websites to show only them (devices added to
+Gladys). The **Refresh** button reads Umami again.
+
+## Scenes
+
+### Triggers
+
+- **Visitor spike**: the visitors right now of a website reach the threshold
+  of the configuration. Once per spike: the visitors must go below the
+  threshold, and 30 minutes pass, before a new one. Variables: website name,
+  domain, visitors right now, threshold.
+- **First visitor of the day**: a website receives its first visitor since
+  midnight. Variables: website name, domain, visitors today.
+- **No visit for a while**: a website that had visits receives none for the
+  hours of the configuration: the tracking script may be broken, or the
+  website down. Once, until a visit comes again. Variables: website name,
+  domain, hours without a visit.
+
+Each trigger can be limited to some websites (empty: any). What the triggers
+remember is kept in the `/data` volume: a restart of Gladys or of the
+integration does not announce a spike or a first visitor twice. Nothing is
+announced at the first read of a website: a spike or a silence already under
+way is only recorded.
+
+### Actions
+
+- **Read the figures of a website**: gives the `name`, the visitors right now
+  (`active`), the `visitors`, `visits`, `pageviews` and `bounce_rate` of the
+  day, the `top_page`, and a ready-made `sentence`, for example "Blog: 132
+  visitor(s) and 410 page view(s) today, 4 right now, most viewed page
+  /posts/hello.".
+
+### Scene ideas
+
+- When **Visitor spike** fires for your shop, send a Telegram message "Rush on
+  {{website}}: {{visitors}} visitors right now".
+- When **No visit for a while** fires, send a notification "No visit on
+  {{website}} for {{hours}} h: check the tracking script".
+- Every evening at 21:00, **Read the figures of a website** and send the
+  `sentence` by message.
+- With the device feature **Visitors right now** as a scene condition, light
+  a lamp in green while someone is on the website.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"Umami Cloud: paste your API key"**: the address is empty, so the
+  integration uses Umami Cloud. Fill in the address of your server if you host
+  Umami yourself.
+- **"API key, user name or password refused"**: copy the key again, or check
+  the user name and password by logging in to Umami with them.
+- **"this account uses two-factor login"**: create an API key (Umami 3.4+), or
+  a dedicated view-only user without two-factor login.
+- **"no Umami at this address"**: check the address and the port (3000 by
+  default). Behind a reverse proxy with a sub-path (`BASE_PATH`), include it.
+- **"the address redirects"**: enter the `https://` address directly.
+- **"too many requests"**: choose a longer refresh interval.
+- A website is missing: the user or the key must have access to it (websites
+  of a team included). The list is read again every 10 minutes, or with
+  **Search** in the Discover tab.
+- The logs of the integration (**Integrations → Umami**) say more; nothing is
+  written there during a normal reading cycle.
+
+## Limits
+
+- Read-only: the integration does not change anything in Umami.
+- The figures are those of Umami at the time of the read, with the refresh
+  interval as delay. "Visitors right now" is the 5-minute window of Umami.
+- One Umami account (Cloud or server) per integration.
+- The thresholds of "Visitor spike" and "No visit for a while" are the same for
+  every website.
+- Umami 1 is not supported (its API is different).
+- Not tested on Umami Cloud yet, and not affiliated with Umami Software.

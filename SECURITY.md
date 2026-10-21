@@ -30,6 +30,19 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- the **API key**, or the **user name and password**, of an Umami account,
+  stored by Gladys in the integration configuration (never written to
+  `/data`, never logged); they are only sent to the address configured (or to
+  `https://api.umami.is` for Umami Cloud), and redirects are not followed so
+  they never reach another host;
+- the **session token** Umami gives in exchange for the password: kept in
+  memory only;
+- `/data/umami-state.json`: what the scene triggers remember per website
+  (spike under way, day of the first visitor, silent or not; no secret);
+- network: HTTP(S) requests to Umami, nothing else; no port is opened.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and Umami itself (Umami Cloud or the self-hosted server).

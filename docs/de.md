@@ -1,0 +1,178 @@
+# Umami
+
+[Umami](https://umami.is/) ist ein einfaches, datenschutzfreundliches
+Web-Analyse-Werkzeug, quelloffen (MIT), selbst gehostet oder in der Umami
+Cloud. Diese Integration bringt die Zahlen deiner Umami-Websites in Gladys:
+Jede Website wird ein Gerät mit ihren Besuchern gerade jetzt und ihren
+Besuchern, Besuchen, Seitenaufrufen, ihrer Absprungrate und meistbesuchten
+Seite des Tages. Szenen können auf einen Besucheransturm reagieren, auf den
+ersten Besucher des Tages oder auf eine Website, die keinen Besuch mehr erhält
+(kaputtes Tracking-Skript), ein Dashboard-Widget zeigt den Tag auf einen
+Blick, und eine Szenen-Aktion schreibt die Zahlen einer Website in eine
+Nachricht.
+
+Getestet mit einem echten, selbst gehosteten Umami 3.4.0 und 2.19.0 (Docker,
+PostgreSQL); noch nicht mit der Umami Cloud: Rückmeldungen sind willkommen in
+[den Issues](https://github.com/guim31/gladys-umami/issues).
+
+## Was du brauchst
+
+- Gladys Assistant 5.1.0 oder neuer.
+- Ein Umami: in der [Umami Cloud](https://cloud.umami.is/) oder dein eigener
+  Server (Umami 2 oder 3), vom Gladys-Rechner aus erreichbar.
+- Zum Anmelden eines davon:
+  - Umami Cloud: ein **API-Schlüssel**;
+  - dein Server ab Umami 3.4: ein **API-Schlüssel** (er beginnt mit
+    `umami_`);
+  - dein Server, jede Version: ein **Benutzername und sein Passwort**. Ein
+    Benutzer mit der Rolle „nur Lesen“ reicht, und das Konto darf keine
+    Zwei-Faktor-Anmeldung nutzen.
+
+Bei jeder Aktualisierung sendet die Integration zwei Anfragen pro Website
+(Besucher gerade jetzt, Zahlen des Tages), dazu alle 5 Minuten die
+meistbesuchte Seite, alle 15 Minuten die Besuche der letzten Stunden und alle
+10 Minuten die Website-Liste. Ein Dutzend Websites, jede Minute gelesen, bleibt
+weit unter den 50 Anfragen pro 15 Sekunden der Umami Cloud; wähle ein längeres
+Intervall, wenn du viele Websites verfolgst.
+
+## Erste Schritte
+
+### 1. Einen API-Schlüssel oder einen Benutzer erstellen
+
+- Umami Cloud oder dein Server ab Umami 3.4: Öffne in Umami **Settings → API
+  keys**, erstelle einen Schlüssel und kopiere ihn (er wird nur einmal
+  angezeigt).
+- Sonst: Erstelle unter **Settings → Users** einen Benutzer mit der Rolle
+  **View only** und gib ihm Zugriff auf die Websites (oder nutze dein eigenes
+  Konto).
+
+### 2. Die Integration konfigurieren
+
+Öffne in Gladys **Integrationen → Umami → Konfiguration**:
+
+- **Umami-Adresse**: leer für die Umami Cloud, oder die Adresse deines Servers
+  (zum Beispiel `http://192.168.1.10:3000`). Eine aus dem Browser kopierte
+  Adresse wird verstanden.
+- **API-Schlüssel**, oder **Benutzername** und **Passwort**: siehe oben. Mit
+  einem API-Schlüssel werden Benutzername und Passwort nicht genutzt.
+- **Aktualisierungsintervall**: von 30 Sekunden bis 5 Minuten (standardmäßig 1
+  Minute).
+- **Besucheransturm ab**: die gleichzeitigen Besucher, die „Besucheransturm“
+  auslösen (standardmäßig 10).
+- **Kein Besuch seit (Stunden)**: die Stunden ohne Besuch, die „Länger kein
+  Besuch“ auslösen (standardmäßig 24).
+- **Sprache der Namen**: Sprache der Funktionsnamen und der Szenen-Ergebnisse
+  (standardmäßig Französisch).
+
+Speichere und klicke dann auf **Verbindung testen**: Das Ergebnis nennt die
+Zahl der Websites, die Besucher des Tages und die Besucher gerade jetzt.
+
+### 3. Die Websites anlegen
+
+Öffne den Tab **Entdecken**: Jede Website wird mit ihrem Namen vorgeschlagen.
+Lege die an, die du in Gladys sehen willst. Die Szenen-Auslöser und das Widget
+funktionieren für alle Websites, angelegt oder nicht.
+
+## Die Geräte
+
+Jede Website wird ein Gerät mit:
+
+- **Besucher gerade jetzt**: die Besucher der letzten 5 Minuten, wie auf der
+  Seite „Realtime“ von Umami.
+- **Besucher heute**: eindeutige Besucher seit Mitternacht.
+- **Besuche heute**: Besuche (Sitzungen) seit Mitternacht.
+- **Seitenaufrufe heute**: Seitenaufrufe seit Mitternacht.
+- **Absprungrate heute**: der Anteil der Besuche mit nur einer Seite, in
+  Prozent.
+- **Meistbesuchte Seite heute**: ihr Pfad, zum Beispiel `/posts/hello`; „-“
+  vor dem ersten Seitenaufruf des Tages.
+
+„Heute“ beginnt um Mitternacht in der Zeitzone von Gladys: Die Tageszahlen
+fangen um Mitternacht wieder bei 0 an. Ein unveränderter Wert wird alle 12
+Stunden erneut gesendet, damit Gladys ihn aktuell hält.
+
+## Dashboard
+
+Das Widget **Umami heute** zeigt vier Kacheln (Besucher gerade jetzt, Besucher,
+Besuche und Seitenaufrufe des Tages), summiert über die angezeigten Websites,
+dann eine Zeile pro Website mit ihren Besuchern des Tages und von gerade
+jetzt, die meistbesuchte zuerst. Bei einer einzigen Website erscheint
+stattdessen die meistbesuchte Seite des Tages. Wähle in den Einstellungen des
+Widgets einige Websites, um nur sie anzuzeigen (in Gladys angelegte Geräte).
+Die Schaltfläche **Aktualisieren** liest Umami neu.
+
+## Szenen
+
+### Auslöser
+
+- **Besucheransturm**: Die Besucher einer Website erreichen gerade die
+  Schwelle der Konfiguration. Einmal pro Ansturm: Die Besucher müssen unter
+  die Schwelle fallen und 30 Minuten vergehen, bevor ein neuer kommt.
+  Variablen: Name der Website, Domain, Besucher gerade jetzt, Schwelle.
+- **Erster Besucher des Tages**: Eine Website empfängt ihren ersten Besucher
+  seit Mitternacht. Variablen: Name der Website, Domain, Besucher heute.
+- **Länger kein Besuch**: Eine Website mit Besuchen erhält für die Stunden der
+  Konfiguration keine mehr: Vielleicht ist das Tracking-Skript kaputt oder die
+  Website ausgefallen. Einmal, bis wieder ein Besuch kommt. Variablen: Name
+  der Website, Domain, Stunden ohne Besuch.
+
+Jeder Auslöser lässt sich auf einige Websites beschränken (leer: alle). Was
+sich die Auslöser merken, liegt im Volume `/data`: Ein Neustart von Gladys oder
+der Integration meldet einen Ansturm oder einen ersten Besucher nicht doppelt.
+Beim ersten Lesen einer Website wird nichts gemeldet: Ein laufender Ansturm
+oder eine laufende Stille wird nur vermerkt.
+
+### Aktionen
+
+- **Zahlen einer Website lesen**: liefert den Namen (`name`), die Besucher
+  gerade jetzt (`active`), die `visitors`, `visits`, `pageviews` und
+  `bounce_rate` des Tages, die meistbesuchte Seite (`top_page`) und einen
+  fertigen Satz (`sentence`), zum Beispiel „Blog: 132 Besucher und 410
+  Seitenaufrufe heute, 4 gerade jetzt, meistbesuchte Seite /posts/hello.“.
+
+### Szenen-Ideen
+
+- Wenn **Besucheransturm** für deinen Shop auslöst, sende eine
+  Telegram-Nachricht „Ansturm auf {{website}}: {{visitors}} Besucher gerade
+  jetzt“.
+- Wenn **Länger kein Besuch** auslöst, sende eine Benachrichtigung „Kein
+  Besuch auf {{website}} seit {{hours}} h: Prüfe das Tracking-Skript“.
+- Jeden Abend um 21 Uhr **Zahlen einer Website lesen** und den Satz als
+  Nachricht senden.
+- Mit der Funktion **Besucher gerade jetzt** als Szenen-Bedingung eine Lampe
+  grün leuchten lassen, solange jemand auf der Website ist.
+
+## Fehlerbehebung
+
+- **„Umami Cloud: Füge deinen API-Schlüssel ein“**: Die Adresse ist leer, also
+  nutzt die Integration die Umami Cloud. Gib die Adresse deines Servers an,
+  wenn du Umami selbst hostest.
+- **„API-Schlüssel, Benutzername oder Passwort abgelehnt“**: Kopiere den
+  Schlüssel erneut, oder prüfe Benutzername und Passwort, indem du dich damit
+  bei Umami anmeldest.
+- **„dieses Konto nutzt Zwei-Faktor-Anmeldung“**: Erstelle einen
+  API-Schlüssel (Umami 3.4+) oder einen eigenen Benutzer „nur Lesen“ ohne
+  Zwei-Faktor-Anmeldung.
+- **„kein Umami unter dieser Adresse“**: Prüfe Adresse und Port (standardmäßig
+  3000). Hinter einem Reverse Proxy mit Unterpfad (`BASE_PATH`) gib ihn mit
+  an.
+- **„die Adresse leitet um“**: Gib direkt die `https://`-Adresse ein.
+- **„zu viele Anfragen“**: Wähle ein längeres Intervall.
+- Eine Website fehlt: Der Benutzer oder der Schlüssel braucht Zugriff darauf
+  (Websites eines Teams eingeschlossen). Die Liste wird alle 10 Minuten neu
+  gelesen, oder mit **Suchen** im Tab „Entdecken“.
+- Die Protokolle der Integration (**Integrationen → Umami**) sagen mehr; bei
+  einem normalen Lesezyklus wird dort nichts geschrieben.
+
+## Grenzen
+
+- Nur Lesen: Die Integration ändert nichts in Umami.
+- Die Zahlen sind die von Umami zum Zeitpunkt des Lesens, mit dem
+  Aktualisierungsintervall als Verzögerung. „Besucher gerade jetzt“ ist das
+  5-Minuten-Fenster von Umami.
+- Ein Umami-Konto (Cloud oder Server) pro Integration.
+- Die Schwellen von „Besucheransturm“ und „Länger kein Besuch“ gelten für alle
+  Websites gleich.
+- Umami 1 wird nicht unterstützt (seine API ist anders).
+- Noch nicht mit der Umami Cloud getestet, und nicht mit Umami Software
+  verbunden.

@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-umami",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "Umami web analytics in Gladys Assistant: visitors right now and today, per website, with scene triggers.",
   "type": "module",
   "main": "index.js",
   "scripts": {

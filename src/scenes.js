@@ -1,41 +1,42 @@
 // -----------------------------------------------------------------------------
-// Scene actions (SDK v0.14+, Gladys 5.1+).
+// Scene action handlers (manifest `scene_actions`, Gladys 5.1+).
 //
-// A scene action is an OPERATION a scene author places in a scene, with
-// parameters and a result: "identify this device", "take a snapshot", "clean
-// these rooms". Each one is declared in the manifest `scene_actions` field
-// (key, label, `fields` in the config_schema grammar, scalar `outputs`) and
-// handled here, keyed by that same `key`; index.js registers every entry with
-// `gladys.onSceneAction(key, ...)`.
-//
-// Scene TRIGGERS are the other direction ("this happened"): they are fired by
-// the device that observes the event, see src/devices/motionSensor.js.
-//
-// The rules that matter:
-//   - `fields` arrive RESOLVED: scene variables substituted, defaults applied,
-//     validated by the core; a `"source": "devices"` field is the chosen
-//     device external_id;
-//   - resolve an object of the declared `outputs` (scalars only), readable by
-//     the following actions of the scene, or `undefined` for none. Keys not
-//     declared in the manifest are dropped by the core;
-//   - throwing fails THIS action only: the scene logs it and continues. A
-//     scene action is never a condition: return an output and let the scene
-//     author gate on it;
-//   - never fire a scene event as a consequence of a received action: a scene
-//     bound to that event would loop through the integration.
+// A threshold on one figure is already a scene condition on the device
+// feature. The action is about what a condition cannot do: put the figures of
+// a website in a message ("Blog: 132 visitors and 410 page views today, 4
+// right now, most viewed page /posts/hello"). It reads Umami again when the
+// last read is older than 15 seconds.
 // -----------------------------------------------------------------------------
 
-import { createLogger } from '@gladysassistant/integration-sdk';
-import { signalDevice } from './devices/index.js';
-
-const logger = createLogger({ name: 'scenes' });
+import { bounceRate } from './devices.js';
+import { ACTION_TEXT, SENTENCE_TEXT, pick } from './texts.js';
 
 export const SCENE_ACTIONS = {
-  // The ack is awaited under the action's `timeout_seconds` (15 s in the
-  // manifest), counted from the moment the scene reaches the action.
-  async identify_device(gladys, { fields, config }) {
-    logger.info(`Scene action identify_device <- ${fields.device}`);
-    const signalled = await signalDevice(gladys, fields.device, config);
-    return { signalled };
+  async get_website_stats(hub, { fields = {} }) {
+    hub.assertReadable();
+    await hub.refreshIfStale();
+    hub.assertReadable();
+    const language = hub.config.language;
+    const site = hub.find(fields.device);
+    if (!site) {
+      throw new Error(pick(ACTION_TEXT.unknownWebsite, language));
+    }
+    const today = site.today ?? { visitors: 0, visits: 0, pageviews: 0, bounces: 0 };
+    const active = site.active ?? 0;
+    const words = SENTENCE_TEXT[language] ?? SENTENCE_TEXT.en;
+    const parts = [words.today(site.name, today.visitors, today.pageviews), words.active(active)];
+    if (site.topPage) {
+      parts.push(words.top(site.topPage));
+    }
+    return {
+      name: site.name,
+      active,
+      visitors: today.visitors,
+      visits: today.visits,
+      pageviews: today.pageviews,
+      bounce_rate: bounceRate(today),
+      top_page: site.topPage ?? '',
+      sentence: `${parts.join(', ')}.`,
+    };
   },
 };

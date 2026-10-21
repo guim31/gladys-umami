@@ -1,67 +1,176 @@
-# Template de démonstration
+# Umami
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+[Umami](https://umami.is/) est un outil de statistiques web simple et
+respectueux de la vie privée, libre (MIT), auto-hébergé ou sur Umami Cloud.
+Cette intégration amène les chiffres de vos sites Umami dans Gladys : chaque
+site devient un appareil avec ses visiteurs en ce moment et ses visiteurs,
+visites, pages vues, taux de rebond et page la plus vue du jour. Des scènes
+peuvent réagir à un pic de visiteurs, au premier visiteur de la journée ou à un
+site qui ne reçoit plus aucune visite (script de suivi cassé), un widget du
+tableau de bord résume la journée d'un coup d'œil, et une action de scène met
+les chiffres d'un site dans un message.
 
-## Ce que vous obtenez
+Testée contre un vrai Umami 3.4.0 et 2.19.0 auto-hébergé (Docker, PostgreSQL) ;
+pas encore sur Umami Cloud : vos retours sont les bienvenus dans
+[les issues](https://github.com/guim31/gladys-umami/issues).
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Ce qu'il vous faut
 
-## Configuration
+- Gladys Assistant 5.1.0 ou plus récent.
+- Un Umami : sur [Umami Cloud](https://cloud.umami.is/), ou votre propre
+  serveur (Umami 2 ou 3), joignable depuis la machine Gladys.
+- Pour se connecter, au choix :
+  - Umami Cloud : une **clé d'API** ;
+  - votre serveur, à partir d'Umami 3.4 : une **clé d'API** (elle commence par
+    `umami_`) ;
+  - votre serveur, toute version : un **nom d'utilisateur et son mot de
+    passe**. Un utilisateur au rôle « lecture seule » suffit, et le compte ne
+    doit pas avoir la double authentification.
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+À chaque rafraîchissement, l'intégration envoie deux requêtes par site
+(visiteurs en ce moment, chiffres du jour), plus la page la plus vue toutes les
+5 minutes, les visites des dernières heures toutes les 15 minutes et la liste
+des sites toutes les 10 minutes. Une douzaine de sites lus chaque minute
+restent loin des 50 requêtes par 15 secondes d'Umami Cloud ; choisissez un
+intervalle plus long si vous suivez beaucoup de sites.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Mise en route
 
-## Actions
+### 1. Créer une clé d'API, ou un utilisateur
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+- Umami Cloud, ou votre serveur à partir d'Umami 3.4 : dans Umami, ouvrez
+  **Settings → API keys**, créez une clé et copiez-la (elle n'est montrée
+  qu'une fois).
+- Sinon : dans **Settings → Users**, créez un utilisateur au rôle **View
+  only** et donnez-lui accès aux sites (ou utilisez votre propre compte).
 
-## Scènes
+### 2. Configurer l'intégration
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+Dans Gladys, ouvrez **Intégrations → Umami → Configuration** :
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+- **Adresse d'Umami** : vide pour Umami Cloud, ou l'adresse de votre serveur
+  (par exemple `http://192.168.1.10:3000`). Une adresse copiée depuis le
+  navigateur est comprise.
+- **Clé d'API**, ou **Nom d'utilisateur** et **Mot de passe** : voir
+  ci-dessus. Avec une clé d'API, l'identifiant et le mot de passe ne servent
+  pas.
+- **Intervalle de rafraîchissement** : de 30 secondes à 5 minutes (1 minute
+  par défaut).
+- **Pic de visiteurs à partir de** : les visiteurs simultanés qui déclenchent
+  « Pic de visiteurs » (10 par défaut).
+- **Aucune visite depuis (heures)** : les heures sans aucune visite qui
+  déclenchent « Aucune visite depuis un moment » (24 par défaut).
+- **Langue des noms** : langue des noms des fonctionnalités et des résultats de
+  scène (français par défaut).
+
+Enregistrez, puis cliquez sur **Tester la connexion** : le résultat donne le
+nombre de sites, les visiteurs du jour et ceux du moment.
+
+### 3. Ajouter les sites
+
+Ouvrez l'onglet **Découverte** : chaque site est proposé avec son nom. Ajoutez
+ceux que vous voulez voir dans Gladys. Les déclencheurs de scène et le widget
+fonctionnent pour tous les sites, ajoutés ou non.
+
+## Les appareils
+
+Chaque site devient un appareil avec :
+
+- **Visiteurs en ce moment** : les visiteurs des 5 dernières minutes, comme la
+  page « Realtime » d'Umami.
+- **Visiteurs aujourd'hui** : visiteurs uniques depuis minuit.
+- **Visites aujourd'hui** : visites (sessions) depuis minuit.
+- **Pages vues aujourd'hui** : pages vues depuis minuit.
+- **Taux de rebond aujourd'hui** : la part des visites qui n'ont vu qu'une
+  page, en pourcentage.
+- **Page la plus vue aujourd'hui** : son chemin, par exemple `/posts/hello` ;
+  « - » avant la première page vue de la journée.
+
+« Aujourd'hui » commence à minuit dans le fuseau horaire de Gladys : les
+chiffres du jour repartent de 0 à minuit. Une valeur qui ne change pas est
+renvoyée toutes les 12 heures, pour que Gladys la garde récente.
 
 ## Tableau de bord
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Le widget **Umami aujourd'hui** affiche quatre tuiles (visiteurs en ce moment,
+visiteurs, visites et pages vues du jour), additionnées sur les sites
+affichés, puis une ligne par site avec ses visiteurs du jour et du moment, le
+plus fréquenté d'abord. Avec un seul site, c'est la page la plus vue du jour
+qui s'affiche. Dans les réglages du widget, choisissez des sites pour
+n'afficher qu'eux (appareils ajoutés à Gladys). Le bouton **Actualiser** relit
+Umami.
+
+## Scènes
+
+### Déclencheurs
+
+- **Pic de visiteurs** : les visiteurs en ce moment d'un site atteignent le
+  seuil de la configuration. Une fois par pic : il faut que les visiteurs
+  repassent sous le seuil, et que 30 minutes passent, avant un nouveau.
+  Variables : nom du site, domaine, visiteurs en ce moment, seuil.
+- **Premier visiteur de la journée** : un site reçoit son premier visiteur
+  depuis minuit. Variables : nom du site, domaine, visiteurs aujourd'hui.
+- **Aucune visite depuis un moment** : un site qui avait des visites n'en reçoit
+  plus pendant les heures de la configuration : le script de suivi est
+  peut-être cassé, ou le site en panne. Une fois, jusqu'au retour d'une visite.
+  Variables : nom du site, domaine, heures sans visite.
+
+Chaque déclencheur peut être limité à certains sites (vide : tous). Ce dont
+les déclencheurs se souviennent est gardé dans le volume `/data` : un
+redémarrage de Gladys ou de l'intégration n'annonce pas deux fois un pic ou un
+premier visiteur. Rien n'est annoncé à la première lecture d'un site : un pic
+ou un silence déjà en cours est seulement noté.
+
+### Actions
+
+- **Lire les chiffres d'un site** : donne le nom (`name`), les visiteurs en ce
+  moment (`active`), les `visitors`, `visits`, `pageviews` et `bounce_rate` du
+  jour, la page la plus vue (`top_page`) et une phrase toute prête
+  (`sentence`), par exemple « Blog : 132 visiteur(s) et 410 page(s) vue(s)
+  aujourd'hui, 4 en ce moment, page la plus vue /posts/hello. ».
+
+### Idées de scènes
+
+- Quand **Pic de visiteurs** se déclenche pour votre boutique, envoyez un
+  message Telegram « Affluence sur {{website}} : {{visitors}} visiteurs en ce
+  moment ».
+- Quand **Aucune visite depuis un moment** se déclenche, envoyez une
+  notification « Aucune visite sur {{website}} depuis {{hours}} h : vérifiez
+  le script de suivi ».
+- Chaque soir à 21 h, **Lire les chiffres d'un site** et envoyer la phrase par
+  message.
+- Avec la fonctionnalité **Visiteurs en ce moment** en condition de scène,
+  allumez une lampe en vert tant que quelqu'un est sur le site.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« Umami Cloud : collez votre clé d'API »** : l'adresse est vide, donc
+  l'intégration utilise Umami Cloud. Indiquez l'adresse de votre serveur si
+  vous hébergez Umami vous-même.
+- **« clé d'API, nom d'utilisateur ou mot de passe refusé »** : recopiez la
+  clé, ou vérifiez l'identifiant et le mot de passe en vous connectant à Umami
+  avec eux.
+- **« ce compte a la double authentification »** : créez une clé d'API (Umami
+  3.4+), ou un utilisateur dédié en lecture seule sans double authentification.
+- **« aucun Umami à cette adresse »** : vérifiez l'adresse et le port (3000 par
+  défaut). Derrière un proxy inverse avec un sous-chemin (`BASE_PATH`),
+  incluez-le.
+- **« l'adresse redirige »** : saisissez directement l'adresse en `https://`.
+- **« trop de requêtes »** : choisissez un intervalle plus long.
+- Un site manque : l'utilisateur ou la clé doit y avoir accès (sites d'une
+  équipe compris). La liste est relue toutes les 10 minutes, ou avec
+  **Rechercher** dans l'onglet Découverte.
+- Les logs de l'intégration (**Intégrations → Umami**) en disent plus ; rien
+  n'y est écrit pendant un cycle de lecture normal.
+
+## Limites
+
+- Lecture seule : l'intégration ne modifie rien dans Umami.
+- Les chiffres sont ceux d'Umami au moment de la lecture, avec l'intervalle de
+  rafraîchissement comme délai. « Visiteurs en ce moment » est la fenêtre de 5
+  minutes d'Umami.
+- Un seul compte Umami (Cloud ou serveur) par intégration.
+- Les seuils de « Pic de visiteurs » et « Aucune visite depuis un moment » sont
+  les mêmes pour tous les sites.
+- Umami 1 n'est pas pris en charge (son API est différente).
+- Pas encore testée sur Umami Cloud, et sans lien avec Umami Software.
