@@ -1,45 +1,127 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 //
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// Umami Cloud (no address, an API key), or a self-hosted Umami: its address,
+// and an API key (`umami_…`, Umami 3.4+) or a user name and password.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+// Refresh intervals offered in the configuration, in seconds.
+export const POLL_INTERVALS = ['30', '60', '120', '300'];
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  url: '',
+  api_key: '',
+  username: '',
+  password: '',
+  poll_interval: '60',
+  spike_threshold: 10,
+  silence_hours: 24,
+  language: 'fr',
 };
 
+export const MAX_SPIKE_THRESHOLD = 1_000_000;
+export const MAX_SILENCE_HOURS = 720;
+
+// Pages of the Umami interface: an address copied from the browser points at
+// one of them, the API lives at the root.
+const INTERFACE_PATH =
+  /\/(websites|dashboard|settings|teams|login|share|api|admin|boards|links|pixels|profile|reports|console)(\/.*)?$/i;
+
+// The hosts of Umami Cloud: the interface and the API.
+const CLOUD_HOST = /^(cloud|api|eu|us)\.umami\.is$/i;
+
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * Parse the address typed by the user into a base URL: a bare host or IP
+ * (`192.0.2.10:3000`), or a URL copied from the browser
+ * (`https://umami.example.org/websites/…`). HTTP by default for a bare host. A
+ * path is kept (Umami behind a reverse proxy sub-path, BASE_PATH), the
+ * interface pages dropped.
+ * @param {unknown} raw
+ * @returns {string|null} `http(s)://host[:port][/path]`, '' for Umami Cloud,
+ *   null when unusable
+ */
+export function parseServerUrl(raw) {
+  if (typeof raw !== 'string') {
+    return '';
+  }
+  const text = raw.trim();
+  if (!text) {
+    return '';
+  }
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `http://${text}`;
+  let url;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
+    return null;
+  }
+  // Credentials in the address would end up in the logs.
+  if (url.username || url.password) {
+    return null;
+  }
+  if (CLOUD_HOST.test(url.hostname)) {
+    return '';
+  }
+  const path = url.pathname.replace(INTERFACE_PATH, '').replace(/\/+$/, '');
+  return `${url.origin}${path}`;
+}
+
+/** Host part shown to the user (no scheme), "Umami Cloud" for the cloud. */
+export const hostOf = (url) => (url ? url.replace(/^https?:\/\//, '') : 'Umami Cloud');
+
+function integer(value, fallback, min, max) {
+  const number = typeof value === 'string' ? Number(value.trim().replace(',', '.')) : value;
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
+/**
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  // A pasted key often carries a trailing space or new line; a password is
+  // taken as typed.
+  const text = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+  const pollInterval = POLL_INTERVALS.includes(String(source.poll_interval))
+    ? String(source.poll_interval)
+    : DEFAULT_CONFIG.poll_interval;
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    url: parseServerUrl(source.url),
+    apiKey: text('api_key'),
+    username: text('username'),
+    password: typeof source.password === 'string' ? source.password : '',
+    pollIntervalMs: Number(pollInterval) * 1000,
+    spikeThreshold: integer(
+      source.spike_threshold,
+      DEFAULT_CONFIG.spike_threshold,
+      1,
+      MAX_SPIKE_THRESHOLD,
+    ),
+    silenceHours: integer(source.silence_hours, DEFAULT_CONFIG.silence_hours, 1, MAX_SILENCE_HOURS),
+    language: LANGUAGES.includes(source.language) ? source.language : DEFAULT_CONFIG.language,
   };
+}
+
+/**
+ * What is missing to sign in, null when the configuration is complete:
+ * 'invalidUrl', 'noKey' (Umami Cloud needs its API key) or 'noCredentials'.
+ */
+export function missingCredentials(config) {
+  if (config.url === null) {
+    return 'invalidUrl';
+  }
+  if (config.url === '') {
+    return config.apiKey ? null : 'noKey';
+  }
+  return config.apiKey || (config.username && config.password) ? null : 'noCredentials';
 }

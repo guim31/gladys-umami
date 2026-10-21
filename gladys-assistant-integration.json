@@ -1,177 +1,644 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Umami",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Visitors right now and today's visits of your Umami websites in Gladys, with a scene on a spike.",
+    "fr": "Visiteurs en ce moment et visites du jour de vos sites Umami dans Gladys, avec une scène sur un pic.",
+    "de": "Besucher gerade jetzt und Besuche des Tages deiner Umami-Websites in Gladys, mit Szene bei Ansturm.",
+    "es": "Visitantes ahora y visitas del día de sus sitios Umami en Gladys, con una escena en caso de pico."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-umami:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-umami/main/cover.png",
+  "categories": ["services"],
   "transports": ["local", "cloud"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your Umami account",
+        "fr": "Votre compte Umami",
+        "de": "Dein Umami-Konto",
+        "es": "Su cuenta de Umami"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Umami Cloud: leave the address empty and paste an API key (Settings → API keys). Your own server: its address, then an API key (Umami 3.4+) or a user name and password. Then add the websites from the Discover tab.",
+        "fr": "Umami Cloud : laissez l'adresse vide et collez une clé d'API (Settings → API keys). Votre serveur : son adresse, puis une clé d'API (Umami 3.4+) ou un identifiant et un mot de passe. Ajoutez ensuite les sites depuis l'onglet Découverte.",
+        "de": "Umami Cloud: Lass die Adresse leer und füge einen API-Schlüssel ein (Settings → API keys). Eigener Server: seine Adresse, dann ein API-Schlüssel (Umami 3.4+) oder Benutzername und Passwort. Lege dann die Websites im Tab „Entdecken“ an.",
+        "es": "Umami Cloud: deje la dirección vacía y pegue una clave de API (Settings → API keys). Su servidor: su dirección, luego una clave de API (Umami 3.4+) o un usuario y una contraseña. Después añada los sitios desde la pestaña Descubrir."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-umami/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Einrichtungsanleitung",
+            "es": "Guía de instalación"
+          }
+        },
+        {
+          "url": "https://umami.is/docs/api",
+          "label": {
+            "en": "Umami API",
+            "fr": "API d'Umami",
+            "de": "Umami-API",
+            "es": "API de Umami"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Umami address",
+        "fr": "Adresse d'Umami",
+        "de": "Umami-Adresse",
+        "es": "Dirección de Umami"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "Empty for Umami Cloud, or the address of your own server.",
+        "fr": "Vide pour Umami Cloud, ou l'adresse de votre propre serveur.",
+        "de": "Leer für Umami Cloud, oder die Adresse deines eigenen Servers.",
+        "es": "Vacía para Umami Cloud, o la dirección de su propio servidor."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "placeholder": {
+        "en": "e.g. http://192.168.1.10:3000",
+        "fr": "ex. http://192.168.1.10:3000",
+        "de": "z. B. http://192.168.1.10:3000",
+        "es": "p. ej. http://192.168.1.10:3000"
+      },
       "required": false,
-      "default": "celsius",
+      "default": ""
+    },
+    {
+      "key": "api_key",
+      "type": "secret",
+      "label": {
+        "en": "API key",
+        "fr": "Clé d'API",
+        "de": "API-Schlüssel",
+        "es": "Clave de API"
+      },
+      "description": {
+        "en": "Umami Cloud, or your server from Umami 3.4 (it starts with umami_).",
+        "fr": "Umami Cloud, ou votre serveur à partir d'Umami 3.4 (elle commence par umami_).",
+        "de": "Umami Cloud, oder dein Server ab Umami 3.4 (er beginnt mit umami_).",
+        "es": "Umami Cloud, o su servidor desde Umami 3.4 (empieza por umami_)."
+      },
+      "required": false
+    },
+    {
+      "key": "username",
+      "type": "string",
+      "label": {
+        "en": "User name",
+        "fr": "Nom d'utilisateur",
+        "de": "Benutzername",
+        "es": "Nombre de usuario"
+      },
+      "description": {
+        "en": "Your own server without an API key: a user that sees the websites (view-only is enough).",
+        "fr": "Votre serveur sans clé d'API : un utilisateur qui voit les sites (lecture seule suffit).",
+        "de": "Eigener Server ohne API-Schlüssel: ein Benutzer, der die Websites sieht (nur Lesen reicht).",
+        "es": "Su servidor sin clave de API: un usuario que vea los sitios (solo lectura es suficiente)."
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Passwort",
+        "es": "Contraseña"
+      },
+      "required": false
+    },
+    {
+      "key": "options",
+      "type": "section",
+      "label": {
+        "en": "Options",
+        "fr": "Options",
+        "de": "Optionen",
+        "es": "Opciones"
+      }
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often Umami is read: two API requests per website each time.",
+        "fr": "À quelle fréquence Umami est lu : deux requêtes d'API par site à chaque fois.",
+        "de": "Wie oft Umami gelesen wird: jedes Mal zwei API-Anfragen pro Website.",
+        "es": "Con qué frecuencia se lee Umami: dos peticiones de API por sitio cada vez."
+      },
+      "required": false,
+      "default": "60",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
+      "key": "spike_threshold",
       "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "label": {
+        "en": "Visitor spike from",
+        "fr": "Pic de visiteurs à partir de",
+        "de": "Besucheransturm ab",
+        "es": "Pico de visitantes a partir de"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Visitors at the same time (last 5 minutes) that fire the scene trigger \"Visitor spike\".",
+        "fr": "Visiteurs simultanés (5 dernières minutes) qui déclenchent le déclencheur de scène « Pic de visiteurs ».",
+        "de": "Gleichzeitige Besucher (letzte 5 Minuten), die den Szenen-Auslöser „Besucheransturm“ auslösen.",
+        "es": "Visitantes simultáneos (últimos 5 minutos) que activan el disparador de escena «Pico de visitantes»."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": 10,
+      "min": 1,
+      "max": 1000000
+    },
+    {
+      "key": "silence_hours",
+      "type": "number",
+      "label": {
+        "en": "No visit for (hours)",
+        "fr": "Aucune visite depuis (heures)",
+        "de": "Kein Besuch seit (Stunden)",
+        "es": "Sin visitas desde hace (horas)"
+      },
+      "description": {
+        "en": "Hours without any visit that fire the scene trigger \"No visit for a while\".",
+        "fr": "Heures sans aucune visite qui déclenchent le déclencheur de scène « Aucune visite depuis un moment ».",
+        "de": "Stunden ohne Besuch, die den Szenen-Auslöser „Länger kein Besuch“ auslösen.",
+        "es": "Horas sin ninguna visita que activan el disparador de escena «Sin visitas desde hace un tiempo»."
+      },
+      "required": false,
+      "default": 24,
+      "min": 1,
+      "max": 720
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
+      "description": {
+        "en": "Language of the feature names (set when a device is added) and of the scene results.",
+        "fr": "Langue des noms des fonctionnalités (fixés à l'ajout d'un appareil) et des résultats de scène.",
+        "de": "Sprache der Funktionsnamen (beim Anlegen eines Geräts festgelegt) und der Szenen-Ergebnisse.",
+        "es": "Idioma de los nombres de las funciones (fijados al añadir un dispositivo) y de los resultados de escena."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "visitor_spike",
+      "label": {
+        "en": "Visitor spike",
+        "fr": "Pic de visiteurs",
+        "de": "Besucheransturm",
+        "es": "Pico de visitantes"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "The visitors right now of a website reach the threshold set in the configuration (once per spike, 30 minutes apart at least).",
+        "fr": "Les visiteurs en ce moment d'un site atteignent le seuil réglé dans la configuration (une fois par pic, 30 minutes d'écart au moins).",
+        "de": "Die Besucher einer Website erreichen gerade die in der Konfiguration gesetzte Schwelle (einmal pro Ansturm, mindestens 30 Minuten Abstand).",
+        "es": "Los visitantes actuales de un sitio alcanzan el umbral fijado en la configuración (una vez por pico, con 30 minutos de separación como mínimo)."
       },
       "fields": [
         {
           "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "source": "devices",
+          "label": {
+            "en": "Websites (empty: any)",
+            "fr": "Sites (vide : tous)",
+            "de": "Websites (leer: alle)",
+            "es": "Sitios (vacío: todos)"
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "website",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Website name",
+            "fr": "Nom du site",
+            "de": "Name der Website",
+            "es": "Nombre del sitio"
+          }
+        },
+        {
+          "key": "domain",
+          "type": "string",
+          "label": {
+            "en": "Domain",
+            "fr": "Domaine",
+            "de": "Domain",
+            "es": "Dominio"
+          }
+        },
+        {
+          "key": "visitors",
+          "type": "number",
+          "label": {
+            "en": "Visitors right now",
+            "fr": "Visiteurs en ce moment",
+            "de": "Besucher gerade jetzt",
+            "es": "Visitantes ahora mismo"
+          }
+        },
+        {
+          "key": "threshold",
+          "type": "number",
+          "label": {
+            "en": "Threshold",
+            "fr": "Seuil",
+            "de": "Schwelle",
+            "es": "Umbral"
+          }
+        }
+      ]
+    },
+    {
+      "key": "first_visitor",
+      "label": {
+        "en": "First visitor of the day",
+        "fr": "Premier visiteur de la journée",
+        "de": "Erster Besucher des Tages",
+        "es": "Primer visitante del día"
+      },
+      "description": {
+        "en": "A website receives its first visitor of the day (the day of Gladys, from midnight).",
+        "fr": "Un site reçoit son premier visiteur de la journée (le jour de Gladys, depuis minuit).",
+        "de": "Eine Website empfängt ihren ersten Besucher des Tages (der Tag von Gladys, ab Mitternacht).",
+        "es": "Un sitio recibe su primer visitante del día (el día de Gladys, desde la medianoche)."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Websites (empty: any)",
+            "fr": "Sites (vide : tous)",
+            "de": "Websites (leer: alle)",
+            "es": "Sitios (vacío: todos)"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "website",
+          "type": "string",
+          "label": {
+            "en": "Website name",
+            "fr": "Nom du site",
+            "de": "Name der Website",
+            "es": "Nombre del sitio"
+          }
+        },
+        {
+          "key": "domain",
+          "type": "string",
+          "label": {
+            "en": "Domain",
+            "fr": "Domaine",
+            "de": "Domain",
+            "es": "Dominio"
+          }
+        },
+        {
+          "key": "visitors",
+          "type": "number",
+          "label": {
+            "en": "Visitors today",
+            "fr": "Visiteurs aujourd'hui",
+            "de": "Besucher heute",
+            "es": "Visitantes hoy"
+          }
+        }
+      ]
+    },
+    {
+      "key": "website_silent",
+      "label": {
+        "en": "No visit for a while",
+        "fr": "Aucune visite depuis un moment",
+        "de": "Länger kein Besuch",
+        "es": "Sin visitas desde hace un tiempo"
+      },
+      "description": {
+        "en": "A website that had visits receives none for the hours set in the configuration: the tracking script may be broken.",
+        "fr": "Un site qui avait des visites n'en reçoit plus pendant les heures réglées dans la configuration : le script de suivi est peut-être cassé.",
+        "de": "Eine Website mit Besuchen erhält für die in der Konfiguration gesetzten Stunden keine mehr: Vielleicht ist das Tracking-Skript kaputt.",
+        "es": "Un sitio que tenía visitas no recibe ninguna durante las horas fijadas en la configuración: quizá el script de seguimiento falla."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Websites (empty: any)",
+            "fr": "Sites (vide : tous)",
+            "de": "Websites (leer: alle)",
+            "es": "Sitios (vacío: todos)"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "website",
+          "type": "string",
+          "label": {
+            "en": "Website name",
+            "fr": "Nom du site",
+            "de": "Name der Website",
+            "es": "Nombre del sitio"
+          }
+        },
+        {
+          "key": "domain",
+          "type": "string",
+          "label": {
+            "en": "Domain",
+            "fr": "Domaine",
+            "de": "Domain",
+            "es": "Dominio"
+          }
+        },
+        {
+          "key": "hours",
+          "type": "number",
+          "label": {
+            "en": "Hours without a visit",
+            "fr": "Heures sans visite",
+            "de": "Stunden ohne Besuch",
+            "es": "Horas sin visitas"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "get_website_stats",
+      "label": {
+        "en": "Read the figures of a website",
+        "fr": "Lire les chiffres d'un site",
+        "de": "Zahlen einer Website lesen",
+        "es": "Leer las cifras de un sitio"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Reads the figures of today and of right now for the next actions, and a ready-made sentence.",
+        "fr": "Lit les chiffres du jour et du moment pour les actions suivantes, et une phrase toute prête.",
+        "de": "Liest die Zahlen von heute und von gerade jetzt für die nächsten Aktionen, und einen fertigen Satz.",
+        "es": "Lee las cifras de hoy y del momento para las siguientes acciones, y una frase lista."
+      },
+      "timeout_seconds": 30,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Website",
+            "fr": "Site",
+            "de": "Website",
+            "es": "Sitio"
+          },
           "required": true
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Website name",
+            "fr": "Nom du site",
+            "de": "Name der Website",
+            "es": "Nombre del sitio"
+          }
+        },
+        {
+          "key": "active",
+          "type": "number",
+          "label": {
+            "en": "Visitors right now",
+            "fr": "Visiteurs en ce moment",
+            "de": "Besucher gerade jetzt",
+            "es": "Visitantes ahora mismo"
+          }
+        },
+        {
+          "key": "visitors",
+          "type": "number",
+          "label": {
+            "en": "Visitors today",
+            "fr": "Visiteurs aujourd'hui",
+            "de": "Besucher heute",
+            "es": "Visitantes hoy"
+          }
+        },
+        {
+          "key": "visits",
+          "type": "number",
+          "label": {
+            "en": "Visits today",
+            "fr": "Visites aujourd'hui",
+            "de": "Besuche heute",
+            "es": "Visitas hoy"
+          }
+        },
+        {
+          "key": "pageviews",
+          "type": "number",
+          "label": {
+            "en": "Page views today",
+            "fr": "Pages vues aujourd'hui",
+            "de": "Seitenaufrufe heute",
+            "es": "Páginas vistas hoy"
+          }
+        },
+        {
+          "key": "bounce_rate",
+          "type": "number",
+          "label": {
+            "en": "Bounce rate today (%)",
+            "fr": "Taux de rebond aujourd'hui (%)",
+            "de": "Absprungrate heute (%)",
+            "es": "Tasa de rebote hoy (%)"
+          }
+        },
+        {
+          "key": "top_page",
+          "type": "string",
+          "label": {
+            "en": "Most viewed page today",
+            "fr": "Page la plus vue aujourd'hui",
+            "de": "Meistbesuchte Seite heute",
+            "es": "Página más vista hoy"
+          }
+        },
+        {
+          "key": "sentence",
+          "type": "string",
+          "label": {
+            "en": "Sentence",
+            "fr": "Phrase",
+            "de": "Satz",
+            "es": "Frase"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "umami_today",
+      "label": {
+        "en": "Umami today",
+        "fr": "Umami aujourd'hui",
+        "de": "Umami heute",
+        "es": "Umami hoy"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Visitors right now, visitors, visits and page views today, per website.",
+        "fr": "Visiteurs en ce moment, visiteurs, visites et pages vues du jour, par site.",
+        "de": "Besucher gerade jetzt, Besucher, Besuche und Seitenaufrufe heute, pro Website.",
+        "es": "Visitantes ahora, visitantes, visitas y páginas vistas de hoy, por sitio."
+      },
+      "icon": "bar-chart-2",
+      "action_timeout_seconds": 30,
+      "settings": [
+        {
+          "key": "websites",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Websites (empty: all)",
+            "fr": "Sites (vide : tous)",
+            "de": "Websites (leer: alle)",
+            "es": "Sitios (vacío: todos)"
+          },
+          "description": {
+            "en": "Empty: every website. Only the devices added to Gladys can be chosen.",
+            "fr": "Vide : tous les sites. Seuls les appareils ajoutés à Gladys peuvent être choisis.",
+            "de": "Leer: alle Websites. Nur die in Gladys angelegten Geräte sind wählbar.",
+            "es": "Vacío: todos los sitios. Solo se pueden elegir los dispositivos añadidos a Gladys."
+          },
+          "required": false
+        }
+      ]
     }
   ]
 }

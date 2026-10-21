@@ -31,16 +31,20 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        reading timer, states, transitions -> scene events, views
+src/devices.js                    one device per website: features, names, values
+src/umami/client.js               Umami API (fetch): Cloud key, self-hosted key, login; errors by kind
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/widgets.js                    dashboard widget `umami_today` (manifest `widgets`)
+src/texts.js                      connection, error, report and action texts (4 languages)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js, src/problems.js     /data/umami-state.json; one log line per repeated failure
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakeUmami.js (checked against test/fixtures/umami)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +74,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** is in four languages (English, French, German with
+  "du", Spanish with "usted"): action messages, widget, manifest texts, and
+  `docs/{en,fr,de,es}.md` with the same sections. `test/i18n.test.js` checks.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -197,6 +202,61 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
 - Les filtres de scène ne font qu'égalité et appartenance : un seuil reste le travail d'un capteur.
 - **Les clés de widgets, de déclencheurs et d'actions sont figées une fois publiées.**
 - `gladys_version` `>=5.1.0` dès qu'il y a widgets, déclencheurs ou actions de scène.
+
+## Umami (propre à ce dépôt)
+
+- **API** (vérifiée sur Umami **3.4.0** et **2.19.0**, images Docker PostgreSQL, 21/10/2026) :
+  `GET /api/websites?includeTeams=true&page=&pageSize=` (`{ data, count, page, pageSize }`),
+  `GET /api/websites/{id}/active` (`{ visitors }` = sessions distinctes des **5 dernières minutes**),
+  `GET /api/websites/{id}/stats?startAt=&endAt=` (millisecondes), `GET /api/websites/{id}/metrics?type=…&limit=1`
+  (`[{ x, y }]`, trié par `y` décroissant).
+- **Différences v2 / v3** : `stats` v2 = `{ pageviews: { value, prev }, … }`, v3 = nombres plats plus
+  `comparison` ; le paramètre de page la plus vue est `type=path` en v3 et **`type=url` en v2** (v2
+  répond 400 à `path`, v3 répond 400 à `url`) : on essaie `path`, puis `url` après un 400, et on
+  retient. Les compteurs PostgreSQL peuvent arriver en chaîne (bigint) : `count()` les convertit.
+- **Authentification**, trois voies : Umami Cloud = `https://api.umami.is/v1` + en-tête
+  `x-umami-api-key` (adresse vide, ou `cloud.umami.is` / `api.umami.is` collée) ; clé auto-hébergée
+  `umami_…` (Umami **3.4+**, `Settings → API keys`, migration `26_add_api_key`) en `Authorization:
+Bearer` ; sinon `POST /api/auth/login` → jeton Bearer, redemandé **une fois** sur 401 (le jeton est
+  lié au hash du mot de passe). Un compte à double authentification répond
+  `{ requiresTwoFactor, partialToken }` : erreur `two_factor`, on oriente vers une clé d'API. Les clés
+  auto-hébergées sont refusées sur `/api/auth`, `/api/users`, `/api/admin`… (sans objet ici).
+- `includeTeams=true` ne donne que les équipes dont le compte est **propriétaire ou gestionnaire**
+  (`getAllUserWebsitesIncludingTeamAccess`) : un utilisateur « view-only » membre d'une équipe y a une
+  liste vide. On lit donc aussi `GET /teams` puis `GET /teams/<id>/websites` (vérifié en 3.4.0). La v2
+  répond **405** à `GET /teams` : liste « incomplète », les sites déjà connus sont gardés.
+- Un site supprimé ou plus partagé répond **401**, jamais 404 (200 `{ visitors: 0 }` pour un
+  administrateur) : un 401 sur `/websites/<id>/…` est traité comme un site disparu (le site est oublié,
+  la liste relue au cycle suivant), pas comme des identifiants refusés.
+- Umami Cloud : 50 requêtes / 15 s ; le client se limite à 40 (`CLOUD_RATE`) en attendant.
+- Un événement envoyé à `POST /api/send` à la seconde N n'est pas compté par un `endAt` tronqué à la
+  même seconde (piège de test, pas de l'intégration).
+- **Déclencheurs** : pic = `active ≥ seuil` sur front montant, réarmé sous le seuil, 30 min au moins
+  entre deux ; premier visiteur = visiteurs du jour > 0 et jour différent du dernier annoncé ; silence
+  = 0 visite sur la fenêtre de N h (une requête `stats` toutes les 15 min, sautée si quelqu'un est là
+  ou si les visites du jour montent). Premier passage d'un site : on enregistre sans annoncer.
+  État dans `/data/umami-state.json`, écrit seulement s'il change.
+- « Aujourd'hui » = minuit local (`TZ` injecté par le superviseur, `Date#setHours(0)`).
+- Le taux de rebond est `unknown/unknown` en `percent` (pas de catégorie pourcentage dans le cœur,
+  comme gladys-gatus).
+
+## Vérifié sur un vrai Umami
+
+Le 21/10/2026, image Docker de l'intégration lancée avec les contraintes du bac à sable de Gladys
+(`--cap-drop ALL --security-opt no-new-privileges --read-only --memory 256m --pids-limit 256`, volume
+`/data`, réseau en pont, `TZ=Europe/Paris`) contre `ghcr.io/umami-software/umami:postgresql-latest`
+(**3.4.0**) et `postgresql-v2.19.0`, visites envoyées à `POST /api/send` comme le script de suivi.
+
+- **Sans Gladys** : reconnexion du SDK en backoff, pas de plantage, aucun secret dans les logs,
+  ~18 Mo au repos, arrêt propre sur SIGTERM (code 0).
+- **Intégration complète** (faux Gladys du SDK, noms en français) : 3.4.0 par identifiant et par clé
+  `umami_…`, 2.19.0 par identifiant (statistiques `{ value, prev }`, repli `url`) ; découverte, états,
+  badge `local`, « Tester la connexion », widget validé, « Lire les chiffres d'un site ». Déclencheurs
+  réels : pic de visiteurs (seuil 4) et premier visiteur de la journée, rien de plus après redémarrage
+  sur le même `/data`. Mauvais mot de passe, mauvaise clé, hôte inconnu, mauvais chemin, Cloud sans
+  clé : messages justes.
+- Non vérifié : Umami Cloud (pas de compte), le déclencheur « aucune visite » en temps réel (couvert
+  par les tests), une instance Gladys réelle (rendu du widget, éditeur de scènes), ClickHouse.
 
 ## Store
 
