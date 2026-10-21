@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-21
+
 ### Added
 
 - First version: the websites of an Umami account (Umami Cloud, or a
@@ -22,4 +24,5 @@ the notes of the version's GitHub Release.
 - Dashboard widget "Umami today".
 - "Test the connection" action, texts in English, French, German and Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-umami/commits/main
+[Unreleased]: https://github.com/guim31/gladys-umami/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-umami/releases/tag/v1.0.0
